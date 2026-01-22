@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>365df User Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #f4f8ff;
+      color: #0f172a;
+    }
+    .wrap {
+      max-width: 720px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #2563eb;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.06);
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+      font-size: 14px;
+    }
+    .label {
+      color: #64748b;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+    .btn.gray {
+      background: #cbd5e1;
+      color: #334155;
+    }
+    .status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .ok { color: #16a34a; }
+    .err { color: #dc2626; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>365df User Dashboard</h1>
+
+  <div class="card">
+    <button class="btn" id="btnConnect">Connect Wallet</button>
+    <div class="status" id="walletText">Not connected</div>
+  </div>
+
+  <div class="card">
+    <h3>Vault (USDT / DF)</h3>
+    <div class="row"><span class="label">Claimable USDT</span><span id="cUSDT">-</span></div>
+    <div class="row"><span class="label">Claimable DF</span><span id="cDF">-</span></div>
+    <button class="btn" id="btnClaim">Claim (Vault)</button>
+  </div>
+
+  <div class="card">
+    <h3>Locked USDT</h3>
+    <div class="row"><span class="label">Amount</span><span id="lUSDT">-</span></div>
+    <div class="row"><span class="label">Start</span><span id="lUSDTs">-</span></div>
+    <div class="row"><span class="label">End</span><span id="lUSDTe">-</span></div>
+    <div class="row"><span class="label">Expired</span><span id="eUSDT">-</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Locked DF</h3>
+    <div class="row"><span class="label">Amount</span><span id="lDF">-</span></div>
+    <div class="row"><span class="label">Start</span><span id="lDFs">-</span></div>
+    <div class="row"><span class="label">End</span><span id="lDFe">-</span></div>
+    <div class="row"><span class="label">Expired</span><span id="eDF">-</span></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+</div>
+
+<script>
+/* ========= CONFIG ========= */
+const VAULT = "0x12537D70BC4F7F9dAc1c65116B78Ecd89682A4d3"; // VaultV5
+const VAULT_ABI = [
+  "function claim()",
+  "function claimableUSDT(address) view returns(uint256)",
+  "function claimableDF(address) view returns(uint256)",
+  "function lockedUSDT(address) view returns(uint256,uint64,uint64,uint256)",
+  "function lockedDF(address) view returns(uint256,uint64,uint64,uint256)"
+];
+
+let provider, signer, vault, user;
+
+/* ========= HELPERS ========= */
+const $ = id => document.getElementById(id);
+const fmt = v => Number(ethers.utils.formatUnits(v,18)).toLocaleString();
+const ts = t => t==0 ? "-" : new Date(t*1000).toLocaleString();
+
+/* ========= CONNECT ========= */
+async function connect() {
+  if (!window.ethereum) {
+    alert("กรุณาเปิดผ่าน MetaMask / Bitget");
+    return;
+  }
+  provider = new ethers.providers.Web3Provider(window.ethereum);
+  await provider.send("eth_requestAccounts", []);
+  signer = provider.getSigner();
+  user = await signer.getAddress();
+  vault = new ethers.Contract(VAULT, VAULT_ABI, signer);
+
+  $("walletText").textContent = user;
+  $("btnConnect").disabled = true;
+  $("btnConnect").classList.add("gray");
+
+  await refresh();
+}
+
+/* ========= REFRESH ========= */
+async function refresh() {
+  try {
+    $("status").textContent = "Loading...";
+    const cU = await vault.claimableUSDT(user);
+    const cD = await vault.claimableDF(user);
+
+    $("cUSDT").textContent = fmt(cU);
+    $("cDF").textContent = fmt(cD);
+
+    const [uAmt,uS,uE,uX] = await vault.lockedUSDT(user);
+    $("lUSDT").textContent = fmt(uAmt);
+    $("lUSDTs").textContent = ts(uS);
+    $("lUSDTe").textContent = ts(uE);
+    $("eUSDT").textContent = fmt(uX);
+
+    const [dAmt,dS,dE,dX] = await vault.lockedDF(user);
+    $("lDF").textContent = fmt(dAmt);
+    $("lDFs").textContent = ts(dS);
+    $("lDFe").textContent = ts(dE);
+    $("eDF").textContent = fmt(dX);
+
+    $("status").textContent = "Updated ✓";
+    $("status").className = "status ok";
+  } catch (e) {
+    console.error(e);
+    $("status").textContent = "Error loading data";
+    $("status").className = "status err";
+  }
+}
+
+/* ========= CLAIM ========= */
+async function claim() {
+  try {
+    $("status").textContent = "Claiming...";
+    const tx = await vault.claim();
+    await tx.wait();
+    $("status").textContent = "Claim success ✓";
+    $("status").className = "status ok";
+    await refresh();
+  } catch (e) {
+    console.error(e);
+    $("status").textContent = "Claim failed";
+    $("status").className = "status err";
+  }
+}
+
+/* ========= BIND ========= */
+$("btnConnect").onclick = connect;
+$("btnClaim").onclick = claim;
+</script>
+</body>
+</html>
