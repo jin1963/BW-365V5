@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>365DF MLM (CoreV4 + VaultV5) - User DApp</title>
+
+  <!-- Ethers v5 (สำคัญมาก: ถ้าไม่มีจะขึ้น ethers is not defined) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <!-- config.js ต้องมาก่อน app.js -->
+  <script src="config.js"></script>
+
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:#f6f7fb; margin:0; padding:18px;}
+    .wrap{max-width:980px;margin:0 auto;}
+    .top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+    .seg{display:flex; gap:10px; flex-wrap:wrap;}
+    .btn{padding:10px 14px; border:1px solid #cfd6e4; border-radius:10px; background:#fff; cursor:pointer;}
+    .btn.primary{background:#1f5eff; border-color:#1f5eff; color:#fff; font-weight:600;}
+    .btn:disabled{opacity:.55; cursor:not-allowed;}
+    .card{background:#fff; border:1px solid #e4e8f2; border-radius:14px; padding:14px; margin-top:14px;}
+    h1{margin:0; font-size:22px;}
+    h2{margin:0 0 10px 0; font-size:18px;}
+    .row{display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px dashed #eef1f7;}
+    .row:last-child{border-bottom:none;}
+    .label{color:#5c6477;}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; word-break:break-all;}
+    .muted{color:#6b7387;}
+    .small{font-size:12px;}
+    .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    @media (max-width: 780px){.grid2{grid-template-columns:1fr;}}
+    .box{border:1px solid #eef1f7; border-radius:12px; padding:12px; background:#fbfcff;}
+    .inp{width:100%; padding:10px 12px; border:1px solid #d6dced; border-radius:10px; outline:none;}
+    .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
+    .pkgWrap{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+    @media (max-width: 780px){.pkgWrap{grid-template-columns:1fr;}}
+    .pkg{border:1px solid #d6dced; background:#fff; border-radius:12px; padding:12px; cursor:pointer; text-align:left;}
+    .pkg.active{outline:2px solid #1f5eff; border-color:#1f5eff;}
+    .t{font-weight:700;}
+    .status{padding:10px 12px; border-radius:12px; background:#0b1220; color:#cfe0ff;}
+    .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#0b1220; color:#fff; padding:10px 12px; border-radius:12px; display:none; max-width:92vw;}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>🌤️ 365DF MLM (CoreV4 + VaultV5)</h1>
+      <div class="seg">
+        <button class="btn primary" id="btnConnect">Connect Wallet</button>
+        <button class="btn" id="btnRefresh">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Addresses -->
+    <div class="card">
+      <div class="row"><div class="label">Network</div><div class="mono" id="netText">-</div></div>
+      <div class="row"><div class="label">Wallet</div><div class="mono" id="walletAddr">-</div></div>
+      <div class="row"><div class="label">CoreV4</div><div class="mono" id="coreAddr">-</div></div>
+      <div class="row"><div class="label">VaultV5</div><div class="mono" id="vaultAddr">-</div></div>
+      <div class="row"><div class="label">BinaryV4</div><div class="mono" id="binaryAddr">-</div></div>
+      <div class="row"><div class="label">Staking365V4</div><div class="mono" id="stakingAddr">-</div></div>
+      <div class="row"><div class="label">USDT</div><div class="mono" id="usdtAddr">-</div></div>
+      <div class="row"><div class="label">365DF</div><div class="mono" id="dfAddr">-</div></div>
+      <div class="small muted">* แนะนำเปิดผ่าน Bitget / MetaMask DApp Browser จะเชื่อมง่ายที่สุด</div>
+    </div>
+
+    <!-- Referral -->
+    <div class="card">
+      <h2>🔗 Referral Links</h2>
+      <div class="grid2">
+        <div class="box">
+          <div class="label">Left Link</div>
+          <div class="mono" id="leftLink">-</div>
+          <div class="actions"><button class="btn" id="btnCopyLeft">Copy Left</button></div>
+        </div>
+        <div class="box">
+          <div class="label">Right Link</div>
+          <div class="mono" id="rightLink">-</div>
+          <div class="actions"><button class="btn" id="btnCopyRight">Copy Right</button></div>
+        </div>
+      </div>
+      <div class="small muted">เปิดลิงก์จะใส่ sponsor / side ให้อัตโนมัติ (query: ?ref=...&side=L/R)</div>
+    </div>
+
+    <!-- Buy / Upgrade -->
+    <div class="card">
+      <h2>🧾 Buy / Upgrade Package</h2>
+
+      <div class="grid2">
+        <div class="box">
+          <div class="label">Sponsor (optional)</div>
+          <input class="inp mono" id="inpSponsor" placeholder="0x... (ปล่อยว่าง = ใช้ COMPANY_WALLET)" />
+          <div class="small muted">* ถ้าปล่อยว่าง ระบบจะ fallback เป็น COMPANY_WALLET</div>
+        </div>
+
+        <div class="box">
+          <div class="label">Placement Side</div>
+          <div class="actions">
+            <button class="btn primary" id="btnSideL">Left</button>
+            <button class="btn" id="btnSideR">Right</button>
+          </div>
+          <div class="small muted">* ถ้าฝั่ง sponsor เต็มจะซื้อไม่ผ่าน (SIDE_TAKEN)</div>
+        </div>
+      </div>
+
+      <div class="box" style="margin-top:12px">
+        <div class="label">เลือกแพ็คเกจ</div>
+
+        <div class="pkgWrap" style="margin-top:10px">
+          <button class="pkg" id="pkg1" data-pkg="1">
+            <div class="t">Small</div>
+            <div class="muted">100 USDT</div>
+            <div class="small muted">DF principal: 365</div>
+          </button>
+          <button class="pkg" id="pkg2" data-pkg="2">
+            <div class="t">Medium</div>
+            <div class="muted">1,000 USDT</div>
+            <div class="small muted">DF principal: 3,650</div>
+          </button>
+          <button class="pkg" id="pkg3" data-pkg="3">
+            <div class="t">Large</div>
+            <div class="muted">10,000 USDT</div>
+            <div class="small muted">DF principal: 36,500</div>
+          </button>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div class="label">Selected</div>
+          <div id="selectedPkg">-</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="btnApprove">Approve USDT</button>
+          <button class="btn primary" id="btnBuy">Approve + Buy/Upgrade</button>
+        </div>
+
+        <div class="small muted">
+          * ปุ่ม “Approve + Buy/Upgrade” จะ Approve ก่อน แล้วค่อยซื้อทันที
+        </div>
+      </div>
+    </div>
+
+    <!-- Commission (USDT Cap) -->
+    <div class="card">
+      <h2>💰 Commission (USDT Cap)</h2>
+
+      <div class="grid2">
+        <div class="box">
+          <div class="label">Total Commission</div>
+          <div class="mono" id="totalCommUSDT">-</div>
+          <div class="small muted">รวมทั้งหมด (Unlocked + Locked + Claimed + Expired)</div>
+        </div>
+
+        <div class="box">
+          <div class="label">Max Claimable by Package</div>
+          <div class="mono" id="maxCapUSDT">-</div>
+          <div class="small muted">Small=365 / Medium=3,650 / Large=36,500</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Claimable Now</div>
+          <div class="mono" id="claimableNowUSDT">-</div>
+          <div class="small muted">เคลมได้ตอนนี้ (ภายใต้ CAP)</div>
+        </div>
+
+        <div class="box">
+          <div class="label">Locked (Upgrade required)</div>
+          <div class="mono" id="lockedUSDT">-</div>
+          <div class="small muted">ยอดที่ “เห็น” แต่เคลมไม่ได้ (ต้องอัพเกรด)</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Locked Start</div>
+          <div class="mono" id="lockStartUSDT">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Locked End (Expire)</div>
+          <div class="mono" id="lockEndUSDT">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Expire Countdown (90 days)</div>
+          <div class="mono" id="expireCountdownUSDT">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Status</div>
+          <div class="mono" id="commStatus">-</div>
+          <div class="small muted" id="commNote">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Expired (Lost)</div>
+          <div class="mono" id="expiredUSDT">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Claimed (Used CAP)</div>
+          <div class="mono" id="claimedUSDT">-</div>
+          <div class="small muted">CAP นับเฉพาะ USDT</div>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:12px">
+        <button class="btn primary" id="btnClaimVaultTop">Claim Vault (USDT+DF)</button>
+      </div>
+
+      <div class="small muted" style="margin-top:8px">
+        * ถ้า Locked เกิน 90 วันก่อนอัพเกรด → จะกลายเป็น Expired และเคลมไม่ได้
+      </div>
+    </div>
+
+    <!-- Vault (USDT/DF) -->
+    <div class="card">
+      <h2>🏦 Vault (USDT / DF)</h2>
+      <div class="grid2">
+        <div class="box">
+          <div class="label">Claimable USDT (Vault)</div>
+          <div class="mono" id="vaultClaimUSDT">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Claimable DF (Vault)</div>
+          <div class="mono" id="vaultClaimDF">-</div>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn" id="btnClaimVault">Claim (Vault)</button>
+      </div>
+      <div class="small muted">* ปุ่มนี้เรียก VaultV5.claim()</div>
+    </div>
+
+    <!-- Staking365V4 -->
+    <div class="card">
+      <h2>⏳ Staking 365 (DF)</h2>
+
+      <div class="grid2">
+        <div class="box">
+          <div class="label">My Package</div>
+          <div class="mono" id="myPkg">-</div>
+          <div class="small muted">ใช้กำหนด CAP (USDT) ของ commission</div>
+        </div>
+        <div class="box">
+          <div class="label">My Rank</div>
+          <div class="mono" id="myRank">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">My Sponsor</div>
+          <div class="mono" id="mySponsor">-</div>
+        </div>
+        <div class="box">
+          <div class="label">My Side</div>
+          <div class="mono" id="mySide">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Left Child</div>
+          <div class="mono" id="leftChild">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Right Child</div>
+          <div class="mono" id="rightChild">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Pending DF Reward</div>
+          <div class="mono" id="pendingStake">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Stake Status</div>
+          <div class="mono" id="stakeStatus">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Stake Start</div>
+          <div class="mono" id="stakeStart">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Stake End</div>
+          <div class="mono" id="stakeEnd">-</div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="label">Countdown</div>
+          <div class="mono" id="stakeCountdown">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Claimed?</div>
+          <div class="mono" id="stakeClaimed">-</div>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:12px">
+        <button class="btn primary" id="btnClaimStake">Claim Stake (DF)</button>
+      </div>
+
+      <div class="small muted" style="margin-top:8px">
+        * Claim Stake = เรียก Staking365V4.claimStake()
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="card">
+      <h2>🧠 Status</h2>
+      <div class="status" id="status">Ready. กรุณา Connect Wallet</div>
+      <div class="small muted" style="margin-top:8px">
+        * ถ้าบนมือถือ แนะนำเปิดผ่าน Bitget/MetaMask DApp Browser
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast">-</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
