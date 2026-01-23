@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>365DF DApp (CoreV4)</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>365DF DApp</h1>
+        <div class="muted small">USDT: <span class="mono" id="usdtAddr">-</span> · 365DF: <span class="mono" id="dfAddr">-</span></div>
+      </div>
+      <div class="seg">
+        <button class="btn" id="btnAddTokens">Add Tokens</button>
+        <button class="btn primary" id="btnConnect">Connect</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Wallet</h2>
+      <div class="row"><div class="label">Status</div><div class="mono" id="walletStatus">❌ Not connected</div></div>
+      <div class="row"><div class="label">Address</div><div><a id="walletLink" class="mono" href="#" target="_blank" rel="noreferrer">-</a></div></div>
+      <div class="row"><div class="label">Network</div><div class="mono" id="netText">-</div></div>
+      <div class="hint muted small" id="hintNet">* ใช้งานบน BSC Mainnet</div>
+    </div>
+
+    <div class="card">
+      <h2>Register / Buy / Upgrade</h2>
+
+      <div class="grid2">
+        <div class="box">
+          <div class="label small">Sponsor</div>
+          <input class="inp mono" id="inpSponsor" placeholder="0x..." />
+          <div class="hint muted small">ใส่กระเป๋า Sponsor (ชั้นเดียว)</div>
+        </div>
+        <div class="box">
+          <div class="label small">Side</div>
+          <div class="actions">
+            <button class="btn" id="btnLeft">LEFT</button>
+            <button class="btn" id="btnRight">RIGHT</button>
+          </div>
+          <div class="hint muted small">เลือกวางซ้าย/ขวา (Binary)</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="pkgWrap">
+        <button class="pkg sel" data-pkg="1" id="pkgSmall">
+          <div class="t">Small</div>
+          <div class="muted small">100 USDT → 365 DF</div>
+          <div class="muted small">0.5%/day · 365 days</div>
+        </button>
+        <button class="pkg" data-pkg="2" id="pkgMed">
+          <div class="t">Medium</div>
+          <div class="muted small">1,000 USDT → 3,650 DF</div>
+          <div class="muted small">0.7%/day · 365 days</div>
+        </button>
+        <button class="pkg" data-pkg="3" id="pkgLarge">
+          <div class="t">Large</div>
+          <div class="muted small">10,000 USDT → 36,500 DF</div>
+          <div class="muted small">1.0%/day · 365 days</div>
+        </button>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btnApprove">Approve USDT</button>
+        <button class="btn primary" id="btnBuy">Buy / Upgrade</button>
+      </div>
+
+      <div class="status small muted" id="buyStatus">Ready.</div>
+    </div>
+
+    <div class="card">
+      <h2>Your Data</h2>
+      <div class="grid2">
+        <div class="box">
+          <div class="row"><div class="label">Package</div><div class="mono" id="uPkg">-</div></div>
+          <div class="row"><div class="label">Rank</div><div class="mono" id="uRank">-</div></div>
+          <div class="row"><div class="label">Sponsor</div><div class="mono" id="uSponsor">-</div></div>
+        </div>
+        <div class="box">
+          <div class="row"><div class="label">Stake End</div><div class="mono" id="stakeEnd">-</div></div>
+          <div class="row"><div class="label">Pending DF</div><div class="mono" id="pendingDF">-</div></div>
+          <div class="row"><div class="label">Claimed?</div><div class="mono" id="stakeClaimed">-</div></div>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:10px">
+        <div class="box">
+          <div class="row"><div class="label">Vault Claimable USDT</div><div class="mono" id="vClaimUSDT">-</div></div>
+          <div class="row"><div class="label">Vault Claimable DF</div><div class="mono" id="vClaimDF">-</div></div>
+          <div class="row"><div class="label">Locked (USDT/DF)</div><div class="mono" id="vLocked">-</div></div>
+          <div class="row"><div class="label">Expires In</div><div class="mono" id="vExpires">-</div></div>
+        </div>
+        <div class="box">
+          <div class="row"><div class="label">Binary L / R / Paid</div><div class="mono" id="binLRP">-</div></div>
+          <div class="row"><div class="label">Cap Remaining</div><div class="mono" id="capRemain">-</div></div>
+          <div class="row"><div class="label">Total Earned (est.)</div><div class="mono" id="earnedEst">-</div></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnClaimVault">Claim Vault</button>
+        <button class="btn" id="btnClaimStake">Claim Stake (365d)</button>
+        <button class="btn" id="btnRefresh">Refresh</button>
+      </div>
+
+      <div class="status small muted" id="dataStatus">-</div>
+    </div>
+
+    <div class="foot muted small">
+      Contracts: Core <span class="mono" id="coreAddr">-</span> · Vault <span class="mono" id="vaultAddr">-</span> · Staking <span class="mono" id="stakingAddr">-</span> · Binary <span class="mono" id="binaryAddr">-</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
